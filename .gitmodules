@@ -1,0 +1,3 @@
+[submodule "vendor/ethervoxai"]
+	path = vendor/ethervoxai
+	url = https://github.com/ethervox-ai/ethervoxai.git

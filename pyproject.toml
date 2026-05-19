@@ -21,15 +21,12 @@ dependencies = [
     "websockets>=11.0",
     "slowapi>=0.1.9",
 ]
-# Transcription is provided by the `noteagent-audio` extension built from
-# `crates/noteagent-py/` via maturin. It cannot be listed here because it's
-# built locally; run `make rust` (or `cd crates/noteagent-py && maturin develop`)
-# after `pip install -e .` to install it into the active venv.
+# Audio + transcription is provided by libethervox.dylib (EtherVox C SDK).
+# Build it with `make ethervox` and set NOTEAGENT_ETHERVOX_LIB to the dylib path.
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
-    "maturin>=1.0",
 ]
 
 [project.scripts]
