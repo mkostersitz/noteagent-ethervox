@@ -1,34 +1,43 @@
-"""Tests for audio backend error handling."""
+"""Tests for the audio layer backed by EtherVoxAudio."""
 
-import builtins
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from noteagent.audio import AudioBackendUnavailable, _load_backend, resolve_device
+from noteagent.audio import list_devices, resolve_device
 
 
-def test_load_backend_missing_raises_actionable_error(monkeypatch):
-    real_import = builtins.__import__
+FAKE_DEVICES = ["Built-in Microphone", "BlackHole 2ch", "USB Audio"]
 
-    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == "noteagent_audio":
-            raise ModuleNotFoundError("No module named 'noteagent_audio'")
-        return real_import(name, globals, locals, fromlist, level)
 
-    monkeypatch.setattr(builtins, "__import__", fake_import)
+# ---------------------------------------------------------------------------
+# list_devices
+# ---------------------------------------------------------------------------
 
-    with pytest.raises(AudioBackendUnavailable) as excinfo:
-        _load_backend()
+def test_list_devices_delegates_to_ethervox(monkeypatch):
+    # list_devices() is a static method on EtherVoxAudio; patch at the source
+    with patch("noteagent.ethervox.audio.EtherVoxAudio.list_devices", return_value=FAKE_DEVICES):
+        result = list_devices()
+    assert result == FAKE_DEVICES
 
-    assert "maturin develop" in str(excinfo.value)
+
+def test_list_devices_missing_lib_raises_import_error(monkeypatch):
+    # Simulate the lib loader failing — ImportError propagates through
+    from noteagent.ethervox import _lib_loader
+    _lib_loader.load_ethervox_lib.cache_clear()
+    with patch(
+        "noteagent.ethervox._lib_loader.load_ethervox_lib",
+        side_effect=ImportError("EtherVox shared library not found"),
+    ):
+        with pytest.raises(ImportError, match="EtherVox"):
+            list_devices()
 
 
 # ---------------------------------------------------------------------------
 # resolve_device
 # ---------------------------------------------------------------------------
-
-FAKE_DEVICES = ["Built-in Microphone", "BlackHole 2ch", "USB Audio"]
-
 
 def test_resolve_device_none_returns_none(monkeypatch):
     monkeypatch.setattr("noteagent.audio.list_devices", lambda: FAKE_DEVICES)
