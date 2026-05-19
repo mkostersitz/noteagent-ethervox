@@ -63,3 +63,4 @@ test-sessions/
 
 # Claude Code worktrees
 .claude/
+Cargo.lock
