@@ -1,8 +1,9 @@
-"""LLM-powered summarization via GitHub Copilot."""
+"""LLM-powered summarization via EtherVox LLM backend."""
 
 from __future__ import annotations
 
-import subprocess
+import os
+from pathlib import Path
 from typing import Optional
 
 from noteagent.models import Transcript
@@ -29,49 +30,56 @@ SUMMARY_PROMPTS = {
 def summarize(
     transcript: Transcript,
     style: str = "general",
-    provider: str = "copilot",
+    provider: str = "ethervox",
+    config=None,
 ) -> str:
-    """Generate a summary from a transcript."""
+    """Generate a summary from a transcript using EtherVox LLM."""
     prompt = _build_prompt(transcript, style)
-
-    if provider == "copilot":
-        return _summarize_copilot(prompt)
-    else:
-        raise ValueError(f"Unknown summary provider: {provider}")
+    return _summarize_ethervox(prompt, config=config)
 
 
 def _build_prompt(transcript: Transcript, style: str) -> str:
-    """Build the LLM prompt from transcript and style."""
     system_prompt = SUMMARY_PROMPTS.get(style, SUMMARY_PROMPTS["general"])
     text = transcript.full_text
-
     max_chars = 30000
     if len(text) > max_chars:
         text = text[:max_chars] + "\n\n[... transcript truncated ...]"
-
     return f"{system_prompt}\n\n---\n\n{text}"
 
 
-def _summarize_copilot(prompt: str) -> str:
-    """Use GitHub Copilot CLI to generate a summary."""
+def _get_default_model_path() -> str:
+    """Find a GGUF model in the configured cache directory."""
+    cache_dir = Path(
+        os.environ.get("NOTEAGENT_MODEL_DIR", "~/.cache/noteagent/models")
+    ).expanduser()
+    for pattern in ("*.gguf", "*.bin"):
+        matches = list(cache_dir.glob(pattern))
+        if matches:
+            return str(matches[0])
+    return ""
+
+
+def _summarize_ethervox(prompt: str, config=None) -> str:
+    """Use the EtherVox LLM backend to generate a summary."""
+    from noteagent.ethervox.llm import EtherVoxLLM
+
     try:
-        result = subprocess.run(
-            ["gh", "copilot", "--", "-p", prompt],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            # Strip the usage stats footer that gh copilot appends
-            output = result.stdout.strip()
-            # The footer starts with a blank line then "Total usage est:"
-            parts = output.split("\nTotal usage est:")
-            return parts[0].strip()
-        return f"[Summary generation failed: {result.stderr.strip()}]"
-    except FileNotFoundError:
-        return (
-            "[GitHub Copilot CLI not found. Install with: gh extension install github/gh-copilot]\n\n"
-            "Transcript preview:\n" + prompt[:500]
-        )
-    except subprocess.TimeoutExpired:
-        return "[Summary generation timed out]"
+        llm_backend = getattr(config, "llm_backend", "local") if config else "local"
+        language = getattr(config, "language", "en") if config else "en"
+
+        if llm_backend == "openai":
+            api_key = getattr(config, "llm_api_key", "") if config else ""
+            base_url = getattr(config, "llm_api_base_url", "https://api.openai.com/v1") if config else "https://api.openai.com/v1"
+            llm = EtherVoxLLM.from_openai(api_key=api_key, base_url=base_url)
+        else:
+            model_path = getattr(config, "llm_model_path", "") if config else ""
+            if not model_path:
+                model_path = _get_default_model_path()
+            llm = EtherVoxLLM(model_path=model_path)
+
+        result = llm.generate(prompt, language=language)
+        return result if result else "[Summary generation returned empty response]"
+    except ImportError as e:
+        return f"[EtherVox LLM unavailable: {e}]"
+    except Exception as e:  # noqa: BLE001
+        return f"[Summary generation failed: {e}]"
