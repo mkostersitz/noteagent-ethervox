@@ -27,10 +27,8 @@ venv/
 ENV/
 env/
 
-# Rust
-target/
-crates/*/target/
-Cargo.lock
+# EtherVox build
+build/ethervox/
 
 # Testing
 .pytest_cache/
@@ -62,3 +60,6 @@ debug/
 # Local config
 .noteagent-local/
 test-sessions/
+
+# Claude Code worktrees
+.claude/
