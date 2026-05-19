@@ -142,6 +142,8 @@ final class PythonServer: ObservableObject {
                 var env: [String: String] = [:]
                 if fm.fileExists(atPath: modelDir)  { env["NOTEAGENT_MODEL_DIR"]  = modelDir }
                 if fm.fileExists(atPath: staticDir) { env["NOTEAGENT_STATIC_DIR"] = staticDir }
+                let ethervoxLib = resources.appendingPathComponent("libethervox.dylib").path
+                if fm.fileExists(atPath: ethervoxLib) { env["NOTEAGENT_ETHERVOX_LIB"] = ethervoxLib }
                 return LaunchPlan(
                     executable: bundledPy,
                     arguments: ["-m", "noteagent.cli"] + serveArgs,
@@ -237,10 +239,10 @@ final class PythonServer: ObservableObject {
 
     private func waitForReady() async {
         // Poll the server's lightweight `/api/devices` endpoint until it
-        // answers or we hit the timeout. 30 s is generous: it covers cold
-        // imports plus the first whisper model load.
+        // answers or we hit the timeout. 60 s covers cold imports plus the
+        // first EtherVox model load (larger than the old whisper-rs path).
         let probeURL = URL(string: "http://\(host):\(port)/api/devices")!
-        let deadline = Date().addingTimeInterval(30)
+        let deadline = Date().addingTimeInterval(60)
         let session = URLSession(configuration: .ephemeral)
 
         while Date() < deadline {
@@ -262,7 +264,7 @@ final class PythonServer: ObservableObject {
 
         await MainActor.run {
             if self.state == .starting {
-                self.state = .failed("Server did not respond within 30 s.")
+                self.state = .failed("Server did not respond within 60 s.")
             }
         }
     }
