@@ -17,16 +17,18 @@ FAKE_DEVICES = ["Built-in Microphone", "BlackHole 2ch", "USB Audio"]
 # ---------------------------------------------------------------------------
 
 def test_list_devices_delegates_to_ethervox(monkeypatch):
-    fake_audio = MagicMock()
-    fake_audio.list_devices.return_value = FAKE_DEVICES
-    with patch("noteagent.audio.EtherVoxAudio", return_value=fake_audio):
+    # list_devices() is a static method on EtherVoxAudio; patch at the source
+    with patch("noteagent.ethervox.audio.EtherVoxAudio.list_devices", return_value=FAKE_DEVICES):
         result = list_devices()
     assert result == FAKE_DEVICES
 
 
 def test_list_devices_missing_lib_raises_import_error(monkeypatch):
+    # Simulate the lib loader failing — ImportError propagates through
+    from noteagent.ethervox import _lib_loader
+    _lib_loader.load_ethervox_lib.cache_clear()
     with patch(
-        "noteagent.audio.EtherVoxAudio",
+        "noteagent.ethervox._lib_loader.load_ethervox_lib",
         side_effect=ImportError("EtherVox shared library not found"),
     ):
         with pytest.raises(ImportError, match="EtherVox"):

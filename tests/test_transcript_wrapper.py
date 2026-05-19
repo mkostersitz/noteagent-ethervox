@@ -40,24 +40,20 @@ def test_to_segment_uses_defaults_for_missing_fields():
 
 
 def test_to_transcript_wraps_segments_and_metadata():
-    t = wrapper._to_transcript(
-        {
-            "segments": [
-                {"start": 0.0, "end": 1.0, "text": "a"},
-                {"start": 1.0, "end": 2.0, "text": "b"},
-            ],
-            "language": "de",
-            "model": "small",
-        }
-    )
+    # _to_transcript(segments: list, language: str, model_size: str) in new API
+    segments = [
+        {"start": 0.0, "end": 1.0, "text": "a"},
+        {"start": 1.0, "end": 2.0, "text": "b"},
+    ]
+    t = wrapper._to_transcript(segments, "de", "small")
     assert isinstance(t, Transcript)
     assert len(t.segments) == 2
     assert t.language == "de"
     assert t.model == "small"
 
 
-def test_to_transcript_handles_empty_dict():
-    t = wrapper._to_transcript({})
+def test_to_transcript_handles_empty_list():
+    t = wrapper._to_transcript([], "en", "base.en")
     assert t.segments == []
     assert t.language == "en"
     assert t.model == "base.en"
@@ -70,7 +66,7 @@ def test_model_path_uses_ggml_naming(tmp_path, monkeypatch):
 
 def test_load_model_raises_when_missing(tmp_path, monkeypatch):
     monkeypatch.setenv("NOTEAGENT_MODEL_DIR", str(tmp_path))
-    with pytest.raises(RuntimeError, match="Whisper model not found"):
+    with pytest.raises(RuntimeError, match="STT model not found"):
         wrapper.load_model("nonexistent")
 
 
@@ -81,21 +77,21 @@ def test_load_model_returns_ethervox_stt_when_present(tmp_path, monkeypatch):
     model_file.write_bytes(b"stub")
 
     sentinel = MagicMock(name="EtherVoxSTTInstance")
-    with patch("noteagent.transcript.EtherVoxSTT", return_value=sentinel) as mock_cls:
+    # EtherVoxSTT is imported inside load_model(), so patch at the source module
+    with patch("noteagent.ethervox.stt.EtherVoxSTT", return_value=sentinel) as mock_cls:
         result = wrapper.load_model("tiny.en")
 
     assert result is sentinel
-    mock_cls.assert_called_once_with(str(model_file))
+    mock_cls.assert_called_once_with(str(model_file), language="en")
 
 
 def test_transcribe_file_round_trips_through_wrapper():
-    """`transcribe_file` delegates to the loaded model and wraps the dict result."""
+    """`transcribe_file` delegates to the loaded model and wraps the list result."""
     fake_model = MagicMock()
-    fake_model.transcribe_file.return_value = {
-        "segments": [{"start": 0.0, "end": 1.2, "text": "hi"}],
-        "language": "en",
-        "model": "tiny.en",
-    }
+    # transcribe_file now returns a list[dict] directly (not a dict with "segments")
+    fake_model.transcribe_file.return_value = [
+        {"start": 0.0, "end": 1.2, "text": "hi"},
+    ]
 
     transcript = wrapper.transcribe_file(
         Path("/dev/null"),
@@ -105,9 +101,7 @@ def test_transcribe_file_round_trips_through_wrapper():
         quality="fast",
     )
 
-    fake_model.transcribe_file.assert_called_once_with(
-        "/dev/null", language="en", quality="fast"
-    )
+    fake_model.transcribe_file.assert_called_once_with("/dev/null")
     assert isinstance(transcript, Transcript)
     assert len(transcript.segments) == 1
     assert transcript.segments[0].text == "hi"
@@ -117,17 +111,10 @@ def test_transcribe_file_round_trips_through_wrapper():
 def test_transcribe_meeting_labels_speakers_and_merges_in_order():
     """Meeting mode labels mic vs system and merges by start time."""
     fake_model = MagicMock()
+    # Each call returns a list[dict] (EtherVoxSTT.transcribe_file return type)
     fake_model.transcribe_file.side_effect = [
-        {
-            "segments": [{"start": 1.0, "end": 2.0, "text": "from mic"}],
-            "language": "en",
-            "model": "tiny.en",
-        },
-        {
-            "segments": [{"start": 0.5, "end": 1.5, "text": "from system"}],
-            "language": "en",
-            "model": "tiny.en",
-        },
+        [{"start": 1.0, "end": 2.0, "text": "from mic"}],
+        [{"start": 0.5, "end": 1.5, "text": "from system"}],
     ]
 
     merged = wrapper.transcribe_meeting(
