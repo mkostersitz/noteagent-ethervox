@@ -6,10 +6,17 @@ from pathlib import Path
 from typing import Optional
 
 
+class AudioBackendUnavailable(RuntimeError):
+    """Raised when the EtherVox audio backend cannot be loaded or used."""
+
+
 def list_devices() -> list[str]:
     """List available audio input devices."""
-    from noteagent.ethervox.audio import EtherVoxAudio
-    return EtherVoxAudio.list_devices()
+    try:
+        from noteagent.ethervox.audio import EtherVoxAudio
+        return EtherVoxAudio.list_devices()
+    except ImportError as exc:
+        raise AudioBackendUnavailable(str(exc)) from exc
 
 
 def resolve_device(device: Optional[str]) -> Optional[str]:
