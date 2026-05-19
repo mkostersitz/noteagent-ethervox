@@ -1,7 +1,7 @@
 """Tests for the thin Python wrapper in `noteagent.transcript`.
 
-The Rust extension (`noteagent_audio`) is mocked so these tests don't need
-a real ggml model on disk and don't invoke whisper.cpp.
+EtherVoxSTT is mocked so these tests don't need a real model on disk and
+don't invoke whisper.cpp or any C library.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def test_to_segment_converts_dict_to_pydantic():
     assert isinstance(seg, TranscriptSegment)
     assert seg.start == 1.0
     assert seg.end == 2.5
-    assert seg.text == " hello "  # wrapper preserves whitespace; full_text() trims
+    assert seg.text == " hello "
     assert seg.confidence == 0.9
     assert seg.speaker == "You"
 
@@ -64,8 +64,6 @@ def test_to_transcript_handles_empty_dict():
 
 
 def test_model_path_uses_ggml_naming(tmp_path, monkeypatch):
-    # transcript.py delegates to noteagent.model_download for the model
-    # directory; patch the env var the resolver honors.
     monkeypatch.setenv("NOTEAGENT_MODEL_DIR", str(tmp_path))
     assert wrapper._model_path("base.en") == tmp_path / "ggml-base.en.bin"
 
@@ -76,20 +74,18 @@ def test_load_model_raises_when_missing(tmp_path, monkeypatch):
         wrapper.load_model("nonexistent")
 
 
-def test_load_model_returns_rust_transcriber_when_present(tmp_path, monkeypatch):
-    """`load_model` constructs `noteagent_audio.WhisperTranscriber` with the resolved path."""
+def test_load_model_returns_ethervox_stt_when_present(tmp_path, monkeypatch):
+    """`load_model` constructs an EtherVoxSTT instance with the resolved path."""
     monkeypatch.setenv("NOTEAGENT_MODEL_DIR", str(tmp_path))
     model_file = tmp_path / "ggml-tiny.en.bin"
     model_file.write_bytes(b"stub")
 
-    fake_module = MagicMock()
-    sentinel = MagicMock(name="WhisperTranscriberInstance")
-    fake_module.WhisperTranscriber.return_value = sentinel
-    with patch.dict("sys.modules", {"noteagent_audio": fake_module}):
+    sentinel = MagicMock(name="EtherVoxSTTInstance")
+    with patch("noteagent.transcript.EtherVoxSTT", return_value=sentinel) as mock_cls:
         result = wrapper.load_model("tiny.en")
 
     assert result is sentinel
-    fake_module.WhisperTranscriber.assert_called_once_with(str(model_file), "tiny.en")
+    mock_cls.assert_called_once_with(str(model_file))
 
 
 def test_transcribe_file_round_trips_through_wrapper():
@@ -115,15 +111,12 @@ def test_transcribe_file_round_trips_through_wrapper():
     assert isinstance(transcript, Transcript)
     assert len(transcript.segments) == 1
     assert transcript.segments[0].text == "hi"
-    # Wrapper sets `.model` from the requested model_size, not the Rust dict.
     assert transcript.model == "tiny.en"
 
 
 def test_transcribe_meeting_labels_speakers_and_merges_in_order():
     """Meeting mode labels mic vs system and merges by start time."""
     fake_model = MagicMock()
-    # First call (mic) returns "You" content at t=1.0
-    # Second call (system) returns "Remote" content at t=0.5
     fake_model.transcribe_file.side_effect = [
         {
             "segments": [{"start": 1.0, "end": 2.0, "text": "from mic"}],
