@@ -30,6 +30,14 @@ mkdir -p "$CODESIGNING_FOLDER_PATH/Contents/Resources"
 rsync -a --delete "$SRCROOT/BuiltResources/python/" "$CODESIGNING_FOLDER_PATH/Contents/Resources/python/"
 rsync -a --delete "$SRCROOT/BuiltResources/static/" "$CODESIGNING_FOLDER_PATH/Contents/Resources/static/"
 rsync -a --delete "$SRCROOT/BuiltResources/models/" "$CODESIGNING_FOLDER_PATH/Contents/Resources/models/"
+# Copy the EtherVox shared library (needed by Python ctypes at runtime).
+cp "$SRCROOT/BuiltResources/libethervox.dylib" "$CODESIGNING_FOLDER_PATH/Contents/Resources/libethervox.dylib"
+
+# Expose library path to Python via a .pth helper (loaded before noteagent imports).
+RESOURCES_DIR="$CODESIGNING_FOLDER_PATH/Contents/Resources"
+PY_MINOR="$("$RESOURCES_DIR/python/bin/python3" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+PTH_FILE="$RESOURCES_DIR/python/lib/python${PY_MINOR}/site-packages/noteagent_ethervox_lib.pth"
+echo "import os; os.environ.setdefault('NOTEAGENT_ETHERVOX_LIB', os.path.join(os.path.dirname(os.path.abspath('$PTH_FILE')), '..', '..', '..', '..', 'libethervox.dylib'))" > "$PTH_FILE"
 
 # ── 3) Harden every nested Mach-O ──────────────────────────────────────────
 # Xcode passes the chosen identity in $EXPANDED_CODE_SIGN_IDENTITY (a SHA-1
@@ -66,6 +74,9 @@ done < <(
     find "$PY_ROOT" \
         \( -name '*.so' -o -name '*.dylib' -o -name 'python3*' \) \
         -type f -print0 2>/dev/null
+    # Also include the EtherVox library next to python/
+    find "$CODESIGNING_FOLDER_PATH/Contents/Resources" \
+        -maxdepth 1 -name 'libethervox.dylib' -print0 2>/dev/null
 )
 
 COUNT=0
