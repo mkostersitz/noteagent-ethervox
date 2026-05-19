@@ -104,8 +104,12 @@ class AppConfig(BaseModel):
     channels: int = 1
     whisper_model: str = "base.en"
     language: str = "en"
-    summary_provider: str = "copilot"
+    summary_provider: str = "ethervox"
     summary_style: str = "general"
+    llm_backend: str = "local"  # "local" | "openai"
+    llm_model_path: str = ""    # path to GGUF model; empty = auto-detect
+    llm_api_key: str = ""       # for openai backend
+    llm_api_base_url: str = "https://api.openai.com/v1"
 
 
 class AuthToken(BaseModel):
