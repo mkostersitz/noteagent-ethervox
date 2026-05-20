@@ -95,6 +95,8 @@ NESTED=()
 while IFS= read -r line; do
     NESTED+=("$line")
 done < <(
+    # Sign libethervox.dylib in Resources root first, then everything inside python/.
+    find "$APP_PATH/Contents/Resources" -maxdepth 1 -name '*.dylib' -type f 2>/dev/null
     find "$APP_PATH/Contents/Resources/python" \
         \( -name '*.so' -o -name '*.dylib' -o -name 'python3*' \) \
         -type f 2>/dev/null
