@@ -16,6 +16,7 @@ struct NoteAgentApp: App {
     @StateObject private var server = PythonServer()
 
     var body: some Scene {
+        // ── Main window ──────────────────────────────────────────────────
         WindowGroup("NoteAgent") {
             ContentView()
                 .environmentObject(server)
@@ -26,7 +27,16 @@ struct NoteAgentApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .commands {
-            CommandGroup(replacing: .newItem) {} // Hide File → New menu
+            // ── File menu ────────────────────────────────────────────────
+            CommandGroup(replacing: .newItem) {} // Hide File → New
+
+            // ── App menu extras ──────────────────────────────────────────
+            CommandGroup(replacing: .appInfo) {
+                Button("About NoteAgent") {
+                    AboutWindowController.shared.show()
+                }
+            }
+
             CommandGroup(after: .appInfo) {
                 Button("Open NoteAgent in Browser") {
                     if let url = server.url {
@@ -35,6 +45,33 @@ struct NoteAgentApp: App {
                 }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
             }
+
+            // ── Help menu ────────────────────────────────────────────────
+            CommandGroup(replacing: .help) {
+                Button("NoteAgent Help") {
+                    HelpWindowController.shared.show()
+                }
+                .keyboardShortcut("?", modifiers: .command)
+
+                Divider()
+
+                Button("Keyboard Shortcuts…") {
+                    HelpWindowController.shared.show()
+                }
+
+                Divider()
+
+                Link("Learn More About EtherVox.ai",
+                     destination: URL(string: "https://ethervox.ai")!)
+
+                Link("Open on GitHub",
+                     destination: URL(string: "https://github.com/mkostersitz/noteagent-ethervox")!)
+            }
+        }
+
+        // ── Preferences window (⌘,) ──────────────────────────────────────
+        Settings {
+            PreferencesView()
         }
     }
 }

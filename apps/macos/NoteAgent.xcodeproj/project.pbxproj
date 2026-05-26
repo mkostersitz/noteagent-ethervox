@@ -12,6 +12,9 @@
 		0A0000000000000000000072 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000042 /* WebView.swift */; };
 		0A0000000000000000000073 /* PythonServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000043 /* PythonServer.swift */; };
 		0A0000000000000000000074 /* StoragePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000044 /* StoragePicker.swift */; };
+		0A0000000000000000000075 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000045 /* AboutView.swift */; };
+		0A0000000000000000000076 /* HelpWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000046 /* HelpWindowView.swift */; };
+		0A0000000000000000000077 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000047 /* PreferencesView.swift */; };
 		0A0000000000000000000080 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000052 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -22,6 +25,9 @@
 		0A0000000000000000000042 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		0A0000000000000000000043 /* PythonServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonServer.swift; sourceTree = "<group>"; };
 		0A0000000000000000000044 /* StoragePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoragePicker.swift; sourceTree = "<group>"; };
+		0A0000000000000000000045 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		0A0000000000000000000046 /* HelpWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpWindowView.swift; sourceTree = "<group>"; };
+		0A0000000000000000000047 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 		0A0000000000000000000050 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0A0000000000000000000051 /* NoteAgent.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NoteAgent.entitlements; sourceTree = "<group>"; };
 		0A0000000000000000000052 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -62,6 +68,9 @@
 				0A0000000000000000000042 /* WebView.swift */,
 				0A0000000000000000000043 /* PythonServer.swift */,
 				0A0000000000000000000044 /* StoragePicker.swift */,
+				0A0000000000000000000045 /* AboutView.swift */,
+				0A0000000000000000000046 /* HelpWindowView.swift */,
+				0A0000000000000000000047 /* PreferencesView.swift */,
 				0A0000000000000000000052 /* Assets.xcassets */,
 				0A0000000000000000000050 /* Info.plist */,
 				0A0000000000000000000051 /* NoteAgent.entitlements */,
@@ -171,6 +180,9 @@
 				0A0000000000000000000072 /* WebView.swift in Sources */,
 				0A0000000000000000000073 /* PythonServer.swift in Sources */,
 				0A0000000000000000000074 /* StoragePicker.swift in Sources */,
+				0A0000000000000000000075 /* AboutView.swift in Sources */,
+				0A0000000000000000000076 /* HelpWindowView.swift in Sources */,
+				0A0000000000000000000077 /* PreferencesView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
