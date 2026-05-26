@@ -16,6 +16,13 @@
 
 import SwiftUI
 
+// MARK: - Helpers
+
+/// Tell the WebView to re-fetch config after a successful preference save.
+private func notifyConfigChanged() {
+    NotificationCenter.default.post(name: .noteAgentConfigChanged, object: nil)
+}
+
 // MARK: - Model fetched from /api/config
 
 private struct ServerConfig: Codable {
@@ -185,6 +192,7 @@ private struct GeneralPrefsView: View {
                 let (_, resp) = try await URLSession.shared.data(for: req)
                 let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
                 durationSaveStatus = (200..<300).contains(code) ? .saved : .failed
+                if durationSaveStatus == .saved { notifyConfigChanged() }
             } catch {
                 durationSaveStatus = .failed
             }
@@ -276,6 +284,7 @@ private struct AudioPrefsView: View {
                 let (_, resp) = try await URLSession.shared.data(for: req)
                 let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
                 saveStatus = (200..<300).contains(code) ? .saved : .failed
+                if saveStatus == .saved { notifyConfigChanged() }
             } catch {
                 saveStatus = .failed
             }
@@ -364,6 +373,7 @@ private struct TranscriptionPrefsView: View {
                 let (_, resp) = try await URLSession.shared.data(for: req)
                 let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
                 saveStatus = (200..<300).contains(code) ? .saved : .failed
+                if saveStatus == .saved { notifyConfigChanged() }
             } catch {
                 saveStatus = .failed
             }

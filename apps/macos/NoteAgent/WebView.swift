@@ -10,6 +10,14 @@
 import SwiftUI
 @preconcurrency import WebKit
 
+/// Posted by `PreferencesView` whenever a setting is successfully saved to
+/// the Python server. `WebView` observes this and soft-reloads the page so
+/// the web UI reflects the new defaults (device, model, duration, etc.)
+/// without requiring the user to manually refresh.
+extension Notification.Name {
+    static let noteAgentConfigChanged = Notification.Name("NoteAgentConfigChanged")
+}
+
 struct WebView: NSViewRepresentable {
     let url: URL
 
@@ -24,6 +32,9 @@ struct WebView: NSViewRepresentable {
         webView.allowsBackForwardNavigationGestures = true
         webView.setValue(false, forKey: "drawsBackground")
         webView.load(URLRequest(url: url))
+
+        context.coordinator.webView = webView
+        context.coordinator.startObservingConfigChanges()
         return webView
     }
 
@@ -38,6 +49,30 @@ struct WebView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
+        weak var webView: WKWebView?
+        private var observer: NSObjectProtocol?
+
+        func startObservingConfigChanges() {
+            observer = NotificationCenter.default.addObserver(
+                forName: .noteAgentConfigChanged,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                // Soft-reload: tell the JS page to re-fetch its config rather
+                // than doing a full navigation reload (avoids losing UI state).
+                self?.webView?.evaluateJavaScript(
+                    "if(typeof window.noteagentConfigDidChange==='function')" +
+                    "{window.noteagentConfigDidChange()}" +
+                    "else{location.reload()}",
+                    completionHandler: nil
+                )
+            }
+        }
+
+        deinit {
+            if let obs = observer { NotificationCenter.default.removeObserver(obs) }
+        }
+
         func webView(_ webView: WKWebView,
                      decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {

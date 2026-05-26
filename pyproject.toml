@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "noteagent"
-version = "0.1.6"
+version = "0.2.1"
 description = "Speech-to-text note-taking agent with live transcription, LLM summarization, and multi-format export"
 requires-python = ">=3.10"
 license = "MIT"
