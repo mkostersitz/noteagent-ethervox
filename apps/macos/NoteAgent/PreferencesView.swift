@@ -21,6 +21,7 @@ import SwiftUI
 private struct ServerConfig: Codable {
     var default_device: String
     var whisper_model: String
+    var max_recording_duration: Double?  // seconds; nil = unlimited
 }
 
 // MARK: - Preference Tabs
@@ -56,7 +57,7 @@ struct PreferencesView: View {
                     .tag(tab)
             }
         }
-        .frame(width: 480, height: 280)
+        .frame(width: 480, height: 360)
         .padding()
     }
 
@@ -75,12 +76,31 @@ struct PreferencesView: View {
 private struct GeneralPrefsView: View {
     @AppStorage(StoragePicker.defaultsKey) private var storagePath: String = ""
 
+    // Duration options: tag 0 = unlimited, otherwise seconds
+    private let durationOptions: [(label: String, seconds: Double)] = [
+        ("No limit",  0),
+        ("5 minutes",  5 * 60),
+        ("10 minutes", 10 * 60),
+        ("15 minutes", 15 * 60),
+        ("30 minutes", 30 * 60),
+        ("1 hour",     60 * 60),
+        ("90 minutes", 90 * 60),
+        ("2 hours",   120 * 60),
+    ]
+
+    @State private var selectedDuration: Double = 0   // 0 = unlimited
+    @State private var durationSaveStatus: SaveStatus = .idle
+    @State private var durationLoaded = false
+
+    private enum SaveStatus { case idle, saved, failed }
+
     private var displayPath: String {
         storagePath.isEmpty ? "Not chosen yet" : storagePath
     }
 
     var body: some View {
         Form {
+            // ── Recordings folder ────────────────────────────────────────
             Section {
                 LabeledContent("Recordings folder") {
                     VStack(alignment: .trailing, spacing: 4) {
@@ -110,8 +130,67 @@ private struct GeneralPrefsView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+
+            // ── Default recording length ─────────────────────────────────
+            Section {
+                Picker("Max recording length", selection: $selectedDuration) {
+                    ForEach(durationOptions, id: \.seconds) { opt in
+                        Text(opt.label).tag(opt.seconds)
+                    }
+                }
+                .onChange(of: selectedDuration) { _ in
+                    guard durationLoaded else { return }
+                    saveDuration()
+                }
+            } footer: {
+                switch durationSaveStatus {
+                case .idle:
+                    Text("Recordings stop automatically after this time. \"No limit\" lets you stop manually.")
+                        .font(.caption).foregroundStyle(.tertiary)
+                case .saved:
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .font(.caption).foregroundStyle(.green)
+                case .failed:
+                    Label("Could not save — server may not be running",
+                          systemImage: "exclamationmark.circle.fill")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
         }
         .formStyle(.grouped)
+        .task { await loadDuration() }
+    }
+
+    private func loadDuration() async {
+        do {
+            let (data, _) = try await URLSession.shared.data(
+                from: URL(string: "http://127.0.0.1:8765/api/config")!)
+            let cfg = try JSONDecoder().decode(ServerConfig.self, from: data)
+            selectedDuration = cfg.max_recording_duration ?? 0
+        } catch {
+            // Server not running — leave "No limit" default
+        }
+        durationLoaded = true
+    }
+
+    private func saveDuration() {
+        Task {
+            do {
+                var req = URLRequest(url: URL(string: "http://127.0.0.1:8765/api/config")!)
+                req.httpMethod = "PUT"
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                // Send null (unlimited) when 0 is selected, otherwise the seconds value
+                let body: [String: Double?] = ["max_recording_duration": selectedDuration > 0 ? selectedDuration : nil]
+                req.httpBody = try JSONEncoder().encode(body)
+                let (_, resp) = try await URLSession.shared.data(for: req)
+                let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+                durationSaveStatus = (200..<300).contains(code) ? .saved : .failed
+            } catch {
+                durationSaveStatus = .failed
+            }
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            durationSaveStatus = .idle
+        }
     }
 }
 

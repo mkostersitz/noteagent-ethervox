@@ -664,6 +664,10 @@ def serve(
         import threading
         threading.Timer(1.0, webbrowser.open, args=[url]).start()
 
+    # Publish the port so the auto-stop timer can call back to our own endpoint.
+    import noteagent.server as _srv
+    _srv._server_port = port
+
     uvicorn.run("noteagent.server:app", host="127.0.0.1", port=port, log_level="info")
 
 

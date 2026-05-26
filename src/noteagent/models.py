@@ -110,6 +110,7 @@ class AppConfig(BaseModel):
     llm_model_path: str = ""    # path to GGUF model; empty = auto-detect
     llm_api_key: str = ""       # for openai backend
     llm_api_base_url: str = "https://api.openai.com/v1"
+    max_recording_duration: Optional[float] = None  # seconds; None = unlimited
 
 
 class AuthToken(BaseModel):

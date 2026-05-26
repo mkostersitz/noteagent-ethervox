@@ -49,6 +49,7 @@ STATIC_DIR = _resolve_static_dir()
 
 # Global config - will be loaded on startup
 _app_config: Optional[AppConfigExtended] = None
+_server_port: int = 8765  # set by cli.serve() before uvicorn starts
 
 
 def get_app_config() -> AppConfigExtended:
@@ -254,6 +255,8 @@ _ALLOWED_CONFIG_FIELDS = {
     "channels",
     "language",
     "summary_style",
+    "whisper_model",
+    "max_recording_duration",
 }
 
 
@@ -487,6 +490,7 @@ class ConfigUpdate(BaseModel):
     language: Optional[str] = None
     summary_provider: Optional[str] = None
     summary_style: Optional[str] = None
+    max_recording_duration: Optional[float] = None  # seconds; 0 or None = unlimited
 
 
 class ExportRequest(BaseModel):
@@ -596,6 +600,36 @@ def api_record_start(body: RecordStartRequest):
         raise HTTPException(503, str(exc)) from exc
 
 
+def _maybe_start_auto_stop_timer(config) -> None:
+    """Start a background timer that auto-stops the recording after
+    ``config.max_recording_duration`` seconds. No-op when the value is
+    None, zero, or negative."""
+    limit = getattr(config, "max_recording_duration", None)
+    if not limit or limit <= 0:
+        return
+
+    def _auto_stop():
+        time.sleep(limit)
+        with _state_lock:
+            if not _state.active:
+                return  # already stopped by the user
+        # POST to our own stop endpoint using only stdlib so we don't
+        # introduce a new dependency.
+        import urllib.request
+        try:
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    f"http://127.0.0.1:{_server_port}/api/record/stop",
+                    method="POST",
+                ),
+                timeout=10,
+            )
+        except Exception:
+            pass  # server may be shutting down
+
+    threading.Thread(target=_auto_stop, daemon=True, name="auto-stop-timer").start()
+
+
 def _start_single(config, device: str, body: RecordStartRequest):
     from noteagent.audio import Recorder
     from noteagent.storage import create_session
@@ -617,6 +651,8 @@ def _start_single(config, device: str, body: RecordStartRequest):
                 daemon=True,
             )
             _state._live_thread.start()
+
+        _maybe_start_auto_stop_timer(config)
 
         return {"status": "recording", "session_id": session.metadata.session_id, "mode": "single"}
 
@@ -650,6 +686,8 @@ def _start_meeting(config, mic_device: str, system_device: str, body: RecordStar
             daemon=True,
         )
         _state._live_thread.start()
+
+    _maybe_start_auto_stop_timer(config)
 
     return {"status": "recording", "session_id": session.metadata.session_id, "mode": "meeting"}
 
