@@ -51,6 +51,7 @@ APP_PATH=$(find "$SCRIPT_DIR/apps/macos/build/Build/Products/Release" \
     -maxdepth 2 -name 'NoteAgent.app' -type d 2>/dev/null | head -1)
 [[ -d "$APP_PATH" ]] || die "NoteAgent.app not found after build"
 
+mkdir -p "$SCRIPT_DIR/dist"
 DMG_OUT="$SCRIPT_DIR/dist/NoteAgent-${VERSION}.dmg"
 rm -f "$DMG_OUT"
 
@@ -62,7 +63,6 @@ cp "$WHATSNEW" "$STAGE/What's New.txt"
 
 create-dmg \
     --volname "NoteAgent $VERSION" \
-    --overwrite \
     --no-internet-enable \
     "$DMG_OUT" \
     "$STAGE/" 2>&1 | sed 's/^/  /' >&2
