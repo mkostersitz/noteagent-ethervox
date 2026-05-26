@@ -87,7 +87,7 @@ app: bundle ## Build NoteAgent.app via xcodebuild (requires full Xcode, not just
 		-scheme NoteAgent \
 		-configuration Release \
 		-derivedDataPath apps/macos/build \
-		build
+		clean build
 	@echo ""
 	@echo "✔ NoteAgent.app built at:"
 	@find apps/macos/build/Build/Products/Release -name 'NoteAgent.app' -maxdepth 2 -print
