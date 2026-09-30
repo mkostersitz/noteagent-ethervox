@@ -101,8 +101,13 @@ log "Installing noteagent + deps into bundled site-packages"
 "$PY_BIN" -m pip install --upgrade --quiet pip
 
 # Install noteagent non-editable so site-packages is self-contained.
+# Always rebuild from a clean tree and force-reinstall: pip otherwise skips
+# same-version installs and setuptools reuses stale build/lib files, which
+# previously shipped a server.py/audio.py mismatch (app hung on launch).
+rm -rf "$REPO_ROOT/build/lib" "$REPO_ROOT"/build/bdist.* "$REPO_ROOT"/src/*.egg-info
+"$PY_BIN" -m pip uninstall --quiet --yes noteagent >/dev/null 2>&1 || true
 NOTEAGENT_ETHERVOX_LIB="$OUT_DIR/libethervox.dylib" \
-    "$PY_BIN" -m pip install --quiet "$REPO_ROOT"
+    "$PY_BIN" -m pip install --quiet --no-cache-dir --force-reinstall "$REPO_ROOT"
 
 # ── Step 4: slim the bundle ────────────────────────────────────────────────
 log "Stripping caches"
@@ -132,6 +137,17 @@ log "Python:       $PY_BIN"
 log "EtherVox lib: $OUT_DIR/libethervox.dylib"
 log "Model:        $(basename "$MODEL_FILE")"
 
-# Quick smoke test
+# Smoke test: import the full server (catches stale/mismatched modules) and
+# make sure the readiness endpoint the macOS app probes answers 200.
 NOTEAGENT_ETHERVOX_LIB="$OUT_DIR/libethervox.dylib" \
-    "$PY_BIN" -c 'import noteagent; print("smoke test OK", noteagent.__file__)' >&2
+NOTEAGENT_SKIP_AUTO_DOWNLOAD=1 \
+    "$PY_BIN" - <<'PY' >&2 || die "Bundle smoke test failed"
+import noteagent
+from noteagent.audio import AudioBackendUnavailable, list_devices  # noqa: F401
+from noteagent.server import api_health, app
+
+assert any(getattr(r, "path", None) == "/api/health" for r in app.routes), "missing /api/health"
+assert api_health()["status"] == "ok"
+print("smoke test OK", noteagent.__file__)
+PY
+find "$PY_DIR" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

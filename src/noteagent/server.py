@@ -153,6 +153,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """Check if path is public (no auth required)."""
         public_prefixes = [
             "/static/",
+            "/api/health",
             "/docs",
             "/openapi.json",
             "/redoc",
@@ -503,6 +504,16 @@ class SummarizeRequest(BaseModel):
 
 class RevealRequest(BaseModel):
     target: str = "session"
+
+
+# ---------------------------------------------------------------------------
+# API routes — health
+# ---------------------------------------------------------------------------
+
+@app.get("/api/health")
+def api_health():
+    """Liveness probe used by the macOS app; must not touch audio/STT backends."""
+    return {"status": "ok", "version": get_version()}
 
 
 # ---------------------------------------------------------------------------

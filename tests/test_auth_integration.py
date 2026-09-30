@@ -248,3 +248,28 @@ class TestConfigStorage:
         assert len(loaded.auth.tokens) == 1
         assert loaded.auth.tokens[0].name == "test"
         assert loaded.auth.tokens[0].role == "admin"
+
+
+class TestHealthEndpoint:
+    """The macOS app polls /api/health for readiness; it must always answer 200."""
+
+    def test_health_ok_without_auth(self, app_without_auth):
+        response = TestClient(app_without_auth).get("/api/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+
+    def test_health_is_public_with_auth(self, app_with_auth):
+        app, _token = app_with_auth
+        response = TestClient(app).get("/api/health")
+        assert response.status_code == 200
+
+    def test_health_does_not_touch_audio_backend(self, app_without_auth, monkeypatch):
+        import noteagent.audio as audio
+
+        def _boom():
+            raise audio.AudioBackendUnavailable("no audio")
+
+        monkeypatch.setattr(audio, "list_devices", _boom)
+        client = TestClient(app_without_auth)
+        assert client.get("/api/devices").status_code == 503
+        assert client.get("/api/health").status_code == 200

@@ -238,10 +238,10 @@ final class PythonServer: ObservableObject {
     // MARK: - Health probe
 
     private func waitForReady() async {
-        // Poll the server's lightweight `/api/devices` endpoint until it
-        // answers or we hit the timeout. 60 s covers cold imports plus the
-        // first EtherVox model load (larger than the old whisper-rs path).
-        let probeURL = URL(string: "http://\(host):\(port)/api/devices")!
+        // Poll the dependency-free `/api/health` endpoint until it answers or
+        // we hit the timeout. Don't probe audio/STT endpoints here: a 5xx from
+        // a broken backend would otherwise stall launch for the full 60 s.
+        let probeURL = URL(string: "http://\(host):\(port)/api/health")!
         let deadline = Date().addingTimeInterval(60)
         let session = URLSession(configuration: .ephemeral)
 

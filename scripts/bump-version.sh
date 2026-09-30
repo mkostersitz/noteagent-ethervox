@@ -12,6 +12,7 @@
 #   apps/macos/NoteAgent/Info.plist      (CFBundleShortVersionString + CFBundleVersion)
 #   apps/macos/NoteAgent.xcodeproj/…    (MARKETING_VERSION in both configurations)
 #   pyproject.toml                       (version = "…")
+#   src/noteagent/__init__.py            (__version__ = "…")
 #
 # Prints the new version to stdout so callers can capture it.
 
@@ -23,6 +24,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLIST="$REPO_ROOT/apps/macos/NoteAgent/Info.plist"
 PBXPROJ="$REPO_ROOT/apps/macos/NoteAgent.xcodeproj/project.pbxproj"
 PYPROJECT="$REPO_ROOT/pyproject.toml"
+INIT_PY="$REPO_ROOT/src/noteagent/__init__.py"
 
 # ── Read current version from Info.plist (single source of truth) ──────────
 CURRENT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST")
@@ -64,6 +66,9 @@ sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = $NEW_BUIL
 
 # ── Update pyproject.toml ──────────────────────────────────────────────────
 sed -i '' "s/^version = \"[^\"]*\"/version = \"$NEW_VERSION\"/" "$PYPROJECT"
+
+# ── Update src/noteagent/__init__.py (reported by the server and CLI) ──────
+sed -i '' "s/^__version__ = \"[^\"]*\"/__version__ = \"$NEW_VERSION\"/" "$INIT_PY"
 
 printf "Bumped %s → %s (build %s)\n" "$CURRENT" "$NEW_VERSION" "$NEW_BUILD" >&2
 printf "%s\n" "$NEW_VERSION"

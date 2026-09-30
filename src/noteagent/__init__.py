@@ -1,6 +1,6 @@
 """NoteAgent — Speech-to-text note-taking agent."""
 
-__version__ = "0.1.6"
+__version__ = "0.2.6"
 
 
 def get_version() -> str:
