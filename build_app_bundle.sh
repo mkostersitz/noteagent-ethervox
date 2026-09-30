@@ -76,7 +76,8 @@ cd "$SCRIPT_DIR"
 git add \
     apps/macos/NoteAgent/Info.plist \
     apps/macos/NoteAgent.xcodeproj/project.pbxproj \
-    pyproject.toml
+    pyproject.toml \
+    src/noteagent/__init__.py
 
 git commit -m "chore: bump version to $VERSION
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.6] — 2026-09-30
+
+### Fixed
+
+- **macOS app hung on launch ("Server did not respond within 60 s").** The
+  readiness probe polled `/api/devices`, which returned 500 in the shipped
+  bundle because of a stale `server.py`/`audio.py` mismatch. The app now polls
+  a new dependency-free `/api/health` endpoint (public, no auth).
+- **Segfault in `noteagent download-model` / first-launch auto-download.** The
+  `EtherVoxModelManager` ctypes binding does not match the C API; model
+  downloads now always use the direct HTTPS path.
+- **`scripts/bump-version.sh` skipped `src/noteagent/__init__.py`**, so the
+  server/CLI reported a stale version. It is now updated (and committed by
+  `build_app_bundle.sh`), and a test enforces that all version sources agree.
+
+### Changed
+
+- `build-bundle.sh` force-reinstalls `noteagent` from a clean tree and its
+  smoke test now imports the server and checks `/api/health`.
+
 ## [0.2.0] — 2026-05-19
 
 ### Breaking changes

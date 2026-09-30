@@ -1,9 +1,8 @@
-"""Model downloader using the EtherVox model manager.
+"""Whisper ggml model downloader.
 
-Models are fetched from the official whisper.cpp HuggingFace mirror via the
-EtherVox model manager C API, which handles checksums, atomic writes, and
-concurrent download coalescing. Falls back to direct urllib download when the
-EtherVox library is not yet available (e.g. first-time setup before build).
+Models are fetched from the official whisper.cpp HuggingFace mirror with a
+direct urllib download written to a ``.part`` file and atomically renamed.
+Concurrent background downloads of the same model are coalesced.
 """
 
 from __future__ import annotations
@@ -72,24 +71,16 @@ def download_model(
     on_progress: Optional[ProgressCallback] = None,
     chunk_size: int = 1024 * 1024,
 ) -> Path:
-    """Download a ggml model, preferring EtherVox model manager when available."""
+    """Download a ggml model via a direct HTTPS fetch with an atomic rename."""
     target = model_path(size, root)
     if target.exists():
         return target
 
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    # Try EtherVox model manager first (handles checksums + atomic writes).
-    try:
-        from noteagent.ethervox.model_manager import EtherVoxModelManager
-        mgr = EtherVoxModelManager(str(target.parent))
-        checksum = _MODELS[size]["checksum"]
-        local = mgr.ensure_model(f"ggml-{size}.bin", _model_url(size), checksum)
-        return Path(local) if local else target
-    except (ImportError, Exception):
-        pass  # Fall through to direct download
-
-    # Direct urllib fallback.
+    # The EtherVox model-manager ctypes binding does not match the C API
+    # (create() expects a config struct, ensure()/list() don't exist) and
+    # segfaults the process, so it is intentionally not used here.
     url = _model_url(size)
     tmp = target.with_suffix(target.suffix + ".part")
     try:

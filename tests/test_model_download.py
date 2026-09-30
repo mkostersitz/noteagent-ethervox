@@ -81,3 +81,34 @@ def test_live_download_tiny_en(tmp_path):
     assert target.exists()
     # ggml-tiny.en.bin is ~75 MB; sanity-check it's at least a megabyte.
     assert target.stat().st_size > 1_000_000
+
+
+def test_download_model_does_not_use_native_model_manager(tmp_path, monkeypatch):
+    """The ctypes model-manager binding segfaults; downloads must use urllib."""
+    import io
+    import sys
+    import types
+
+    from noteagent import model_download
+
+    fake_mod = types.ModuleType("noteagent.ethervox.model_manager")
+
+    class _Boom:
+        def __init__(self, *a, **k):
+            raise AssertionError("native model manager must not be used")
+
+    fake_mod.EtherVoxModelManager = _Boom
+    monkeypatch.setitem(sys.modules, "noteagent.ethervox.model_manager", fake_mod)
+
+    class _Resp(io.BytesIO):
+        headers = {"Content-Length": "4"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(model_download.urllib.request, "urlopen", lambda url: _Resp(b"ggml"))
+    path = model_download.download_model("tiny.en", root=tmp_path)
+    assert path.read_bytes() == b"ggml"
